@@ -1,0 +1,1133 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Excel Merger – Tabs from multiple files</title>
+
+    <!--
+    SECURITY / PRIVACY NOTES
+    - Files are processed locally in the browser (no upload endpoints).
+    - CSP below blocks outbound network connections from this page.
+    - XLSX library is loaded locally from /vendor (no CDN).
+  -->
+
+    <!-- Strong CSP (blocks outbound connections). Inline CSS/JS is allowed for simplicity. -->
+    <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    base-uri 'none';
+    object-src 'none';
+    frame-ancestors 'none';
+    form-action 'none';
+    connect-src 'none';
+    img-src 'self' data:;
+    style-src 'self' 'unsafe-inline';
+    script-src 'self' 'unsafe-inline';
+    font-src 'self' data:;
+    media-src 'none';
+    worker-src 'self' blob:;
+    upgrade-insecure-requests;
+  ">
+
+    <!-- Local SheetJS (you must commit this file to /vendor/xlsx.full.min.js) -->
+    <script src="./vendor/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --bg1: #0b1220;
+            --bg2: #071728;
+            --card: rgba(255, 255, 255, .08);
+            --card2: rgba(255, 255, 255, .06);
+            --stroke: rgba(255, 255, 255, .14);
+            --text: rgba(255, 255, 255, .92);
+            --muted: rgba(255, 255, 255, .65);
+
+            --good: #43f08a;
+            --warn: #ffd166;
+            --bad: #ff5c7a;
+            --btn: #dbeafe;
+            --btnText: #0b1220;
+            --btn2: rgba(255, 255, 255, .10);
+            --btn2Text: rgba(255, 255, 255, .92);
+            --btn2Stroke: rgba(255, 255, 255, .16);
+
+            --barBg: rgba(255, 255, 255, .10);
+            --barFill: rgba(219, 234, 254, .90);
+            --barFill2: rgba(67, 240, 138, .80);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            min-height: 100%;
+        }
+
+        body {
+            min-height: 100vh;   /* allow page to grow */
+            margin: 0;
+            color: var(--text);
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            background:
+                radial-gradient(1200px 700px at 20% 10%, rgba(67, 240, 138, .14), transparent 60%),
+                radial-gradient(900px 600px at 85% 20%, rgba(59, 130, 246, .16), transparent 55%),
+                linear-gradient(180deg, var(--bg1), var(--bg2));
+            background-attachment: fixed;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 32px 16px;
+        }
+
+        .wrap {
+            width: min(980px, 100%);
+            display: grid;
+            grid-template-columns: 1.25fr .75fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 880px) {
+            .wrap {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            border: 1px solid var(--stroke);
+            background: linear-gradient(180deg, var(--card), var(--card2));
+            border-radius: 16px;
+            padding: 18px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, .25);
+            backdrop-filter: blur(10px);
+        }
+
+        .title {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .badge {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+            background: rgba(67, 240, 138, .18);
+            border: 1px solid rgba(67, 240, 138, .35);
+            font-weight: 800;
+            font-size: 12px;
+            letter-spacing: .4px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .sub {
+            margin: 6px 0 0;
+            color: var(--muted);
+            line-height: 1.45;
+            font-size: 13px;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .row input#outputName {
+            flex: 1 1 260px;
+            min-width: 220px;
+            padding: 12px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, .14);
+            background: rgba(0, 0, 0, .18);
+            color: rgba(255, 255, 255, .92);
+            outline: none;
+        }
+
+        .row input#outputName::placeholder {
+            color: rgba(255, 255, 255, .55);
+        }
+
+        .row input#outputName:focus {
+            border-color: rgba(219, 234, 254, .45);
+            box-shadow: 0 0 0 3px rgba(219, 234, 254, .10);
+        }
+
+        .dropzone {
+            width: 100%;
+            padding: 14px;
+            border-radius: 14px;
+            border: 1px dashed rgba(255, 255, 255, .22);
+            background: rgba(255, 255, 255, .04);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .dropzone.dragover {
+            border-color: rgba(219, 234, 254, .65);
+            background: rgba(219, 234, 254, .08);
+            box-shadow: inset 0 0 0 1px rgba(219, 234, 254, .15);
+        }
+
+        .dz-top {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .dz-title {
+            font-size: 12px;
+            font-weight: 800;
+            color: rgba(255, 255, 255, .85);
+        }
+
+        .dz-sub {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .btn {
+            appearance: none;
+            border: 0;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-weight: 800;
+            background: var(--btn);
+            color: var(--btnText);
+            cursor: pointer;
+            user-select: none;
+            text-decoration: none;
+            transition: transform .06s ease, opacity .2s ease, filter .2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            filter: brightness(1.03);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
+
+        .btn.secondary {
+            background: var(--btn2);
+            color: var(--btn2Text);
+            border: 1px solid var(--btn2Stroke);
+            font-weight: 700;
+        }
+
+        .btn.small {
+            padding: 8px 10px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .btn.danger {
+            background: rgba(255, 92, 122, .14);
+            border: 1px solid rgba(255, 92, 122, .30);
+            color: rgba(255, 255, 255, .92);
+        }
+
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .filelist {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .fileitem {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, .10);
+            background: rgba(255, 255, 255, .04);
+        }
+
+        .fileitem[draggable="true"] {
+            cursor: grab;
+        }
+
+        .fileitem.dragging {
+            opacity: .6;
+            cursor: grabbing;
+        }
+
+        .left {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .handle {
+            width: 28px;
+            height: 28px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, .14);
+            background: rgba(0, 0, 0, .18);
+            display: grid;
+            place-items: center;
+            color: rgba(255, 255, 255, .75);
+            font-size: 14px;
+            user-select: none;
+            flex: 0 0 auto;
+        }
+
+        .filemeta {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .filename {
+            font-size: 13px;
+            font-weight: 800;
+            color: rgba(255, 255, 255, .90);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 520px;
+        }
+
+        .filesub {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .filelabel {
+            margin-top: 6px;
+            width: min(520px, 100%);
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,.14);
+            background: rgba(0,0,0,.18);
+            color: rgba(255,255,255,.92);
+            outline: none;
+            font-size: 12px;
+        }
+
+        .filelabel::placeholder{
+            color: rgba(255,255,255,.55);
+        }
+
+        .filelabel:focus{
+            border-color: rgba(219,234,254,.45);
+            box-shadow: 0 0 0 3px rgba(219,234,254,.10);
+        }
+
+        .opt {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, .10);
+            background: rgba(255, 255, 255, .04);
+        }
+
+        .opt input {
+            transform: translateY(1px);
+        }
+
+        label {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .progressWrap {
+            border: 1px solid rgba(255, 255, 255, .12);
+            background: rgba(0, 0, 0, .18);
+            border-radius: 14px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .pRow {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: baseline;
+            flex-wrap: wrap;
+        }
+
+        .pTitle {
+            font-size: 12px;
+            font-weight: 800;
+            color: rgba(255, 255, 255, .88);
+        }
+
+        .pMeta {
+            font-size: 12px;
+            color: var(--muted);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        .bar {
+            height: 10px;
+            border-radius: 999px;
+            background: var(--barBg);
+            border: 1px solid rgba(255, 255, 255, .10);
+            overflow: hidden;
+        }
+
+        .fill {
+            height: 100%;
+            width: 0%;
+            background: var(--barFill);
+            border-radius: 999px;
+            transition: width .12s ease;
+        }
+
+        .fill.alt {
+            background: var(--barFill2);
+        }
+
+        .log {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 12px;
+            color: rgba(255, 255, 255, .85);
+            background: rgba(0, 0, 0, .22);
+            border: 1px solid rgba(255, 255, 255, .12);
+            border-radius: 12px;
+            padding: 12px;
+            min-height: 190px;
+            white-space: pre-wrap;
+            overflow: auto;
+            margin-top: 10px;
+        }
+
+        .side h2 {
+            margin: 0 0 10px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, .88);
+        }
+
+        .side ul {
+            margin: 0;
+            padding-left: 18px;
+            color: var(--muted);
+            line-height: 1.5;
+            font-size: 13px;
+        }
+
+        .ok {
+            color: var(--good);
+        }
+
+        .warn {
+            color: var(--warn);
+        }
+
+        .bad {
+            color: var(--bad);
+        }
+
+        .modal{
+            position: fixed;
+            inset: 0;
+            display: none;
+            z-index: 9999;
+        }
+
+        .modal.open{
+         display: block;
+        }
+
+        .modal-backdrop{
+            position: absolute;
+            inset: 0;
+           background: rgba(0,0,0,.55);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-panel{
+            position: relative;
+            width: min(780px, calc(100% - 28px));
+            margin: 60px auto;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,.14);
+            background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+            box-shadow: 0 18px 45px rgba(0,0,0,.40);
+            overflow: hidden;
+        }
+
+        .modal-header{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 14px 10px 14px;
+            border-bottom: 1px solid rgba(255,255,255,.12);
+        }
+
+        .modal-kicker{
+            font-size: 12px;
+            color: rgba(255,255,255,.65);
+            margin-bottom: 2px;
+        }
+
+        .modal-title{
+            margin: 0;
+            font-size: 16px;
+            color: rgba(255,255,255,.92);
+        }
+
+        .modal-body{
+            padding: 14px;
+            color: rgba(255,255,255,.90);
+            font-size: 13px;
+            line-height: 1.55;
+        }
+
+        .modal-body h4{
+            margin: 10px 0 6px;
+            font-size: 13px;
+            color: rgba(255,255,255,.88);
+        }
+
+        .modal-body ul{
+            margin: 0 0 10px;
+            padding-left: 18px;
+            color: rgba(255,255,255,.75);
+        }
+
+        .modal-note{
+            margin-top: 10px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(0,0,0,.18);
+            color: rgba(255,255,255,.80);
+        }
+
+        /* Yellow accent for Security info button */
+        #securityBtn{
+            background: rgba(255, 209, 102, .16);        /* warn yellow */
+            border: 1px solid rgba(255, 209, 102, .32);
+            color: rgba(255, 255, 255, .92);
+        }
+
+        /* Yellow-tinted modal backdrop (subtle) */
+            .modal-backdrop{
+            background: rgba(18, 14, 6, .62);
+        }
+
+        /* Yellow-tinted modal panel */
+        .modal-panel{
+            border: 1px solid rgba(255, 209, 102, .22);
+            background: linear-gradient(
+                180deg,
+                rgba(255, 209, 102, .10),
+                rgba(255, 255, 255, .06)
+        );
+        }
+
+        /* Optional: make the little kicker label slightly yellow too */
+            .modal-kicker{
+            color: rgba(255, 209, 102, .85);
+        }
+
+        /* Optional: highlight the summary box */
+            .modal-note{
+            border: 1px solid rgba(255, 209, 102, .18);
+            background: rgba(255, 209, 102, .08);
+        }
+
+
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <section class="card">
+            <div class="title" style="justify-content: space-between;">
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <div class="badge">XM</div>
+                    <div>
+                        <h1>Excel Merger</h1>
+                        <p class="sub">Merge multiple Excel files into a single workbook.</p>
+                    </div>
+                </div>
+            
+                <button id="securityBtn" class="btn secondary small" type="button">Security info</button>
+            </div>
+
+
+            <div class="controls">
+                <input id="filePicker" class="visually-hidden" type="file" accept=".xlsx,.xlsm" multiple />
+
+                <div id="dropzone" class="dropzone">
+                    <div class="dz-top">
+                        <div>
+                            <div class="dz-title">Drop Excel files here</div>
+                            <div class="dz-sub">or click “Add files”. Drag files in the list to set the merge order.</div>
+                        </div>
+                        <label for="filePicker" class="btn secondary small" role="button" tabindex="0">Add files</label>
+                    </div>
+                    <ul id="fileList" class="filelist"></ul>
+                </div>
+
+                <div class="opt">
+                    <input id="prefixNames" type="checkbox" checked />
+                    <label for="prefixNames">Prefix sheet names with file name (recommended)</label>
+                </div>
+
+                <div class="opt">
+                    <input id="keepFormulas" type="checkbox" checked />
+                    <label for="keepFormulas">Keep formulas (if present)</label>
+                </div>
+
+                <div class="row">
+                    <input id="outputName" type="text" placeholder="Output file name" />
+                    <button id="mergeBtn" class="btn" disabled type="button">Create merged Excel</button>
+                    <button id="resetBtn" class="btn secondary" type="button">Reset</button>
+                </div>
+            </div>
+        </section>
+
+        <aside class="card side">
+            <h2>Limitations</h2>
+            <ul>
+                <li><span class="ok">✅</span> Sheets and cell data (values and most formulas)</li>
+                <li><span class="ok">✅</span> Merged cells and often column widths</li>
+                <li><span class="warn">⚠️</span> Advanced formatting and themes may change</li>
+                <li><span class="bad">✖</span> PivotTables, charts, images, Power Query, and macros are not reliably
+                    preserved</li>
+            </ul>
+
+            <div class="progressWrap">
+                <div class="pRow">
+                    <div class="pTitle">Overall progress</div>
+                    <div id="overallMeta" class="pMeta">0 / 0 sheets</div>
+                </div>
+                <div class="bar">
+                    <div id="overallFill" class="fill"></div>
+                </div>
+
+                <div class="pRow">
+                    <div class="pTitle">Current file</div>
+                    <div id="fileMeta" class="pMeta">–</div>
+                </div>
+                <div class="bar">
+                    <div id="fileFill" class="fill alt"></div>
+                </div>
+            </div>
+
+            <div id="log" class="log">Loading…</div>
+        </aside>
+    </div>
+
+    <!-- Security modal -->
+    <div id="securityModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true"
+        aria-labelledby="securityTitle">
+        <div class="modal-backdrop" data-close="true"></div>
+    
+        <div class="modal-panel" role="document">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-kicker">Security & privacy</div>
+                    <h3 id="securityTitle" class="modal-title">How to use this tool safely</h3>
+                </div>
+                <button id="securityClose" class="btn secondary small" type="button" aria-label="Close">Close</button>
+            </div>
+    
+            <div class="modal-body">
+                <h4>How your files are handled</h4>
+                <ul>
+                    <li>Excel files are processed <b>locally in your browser</b>.</li>
+                    <li>Files are <b>not uploaded, stored, or sent</b> to any server.</li>
+                    <li>The site has <b>no backend, database, or analytics</b>.</li>
+                    <li>Outbound network connections from this page are <b>blocked by policy</b>.</li>
+                </ul>
+    
+                <h4>Residual risks (normal for any browser tool)</h4>
+                <ul>
+                    <li>Browser extensions or endpoint security software may inspect file activity.</li>
+                    <li>If the merged Excel file contains external links/queries, Excel may prompt you when opening it.</li>
+                </ul>
+    
+                <h4>Use this tool securely</h4>
+                <ul>
+                    <li>Use a <b>company-managed device</b>.</li>
+                    <li>Use a <b>work browser profile</b> without untrusted extensions.</li>
+                    <li>Use the <b>official site URL</b> only.</li>
+                    <li>Follow company guidance if Excel warns about external content.</li>
+                </ul>
+    
+                <div class="modal-note">
+                    Summary: When used on a company-managed device and network/VPN, this tool is safe for confidential Excel
+                    files.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const $ = (id) => document.getElementById(id);
+
+            const dropzone = $("dropzone");
+            const filePicker = $("filePicker");
+            const fileListEl = $("fileList");
+            const mergeBtn = $("mergeBtn");
+            const resetBtn = $("resetBtn");
+            const prefixNamesEl = $("prefixNames");
+            const keepFormulasEl = $("keepFormulas");
+            const outputNameEl = $("outputName");
+            const logEl = $("log");
+
+            const overallFill = $("overallFill");
+            const overallMeta = $("overallMeta");
+            const fileFill = $("fileFill");
+            const fileMeta = $("fileMeta");
+
+            // Security modal wiring
+            const securityBtn = $("securityBtn");
+            const securityModal = $("securityModal");
+            const securityClose = $("securityClose");
+
+            // IMPORTANT: now stores objects with label per file
+            let selectedFiles = []; // [{ file: File, label: string }]
+            let dragFromIndex = null;
+
+            const setLog = (t) => { logEl.textContent = t; };
+            const addLog = (line) => { logEl.textContent += "\n" + line; logEl.scrollTop = logEl.scrollHeight; };
+
+            setLog("App loaded ✅");
+
+            // If the local vendor file is missing, merging can't work.
+            if (typeof XLSX === "undefined") {
+                addLog("❌ XLSX library not found. Make sure /vendor/xlsx.full.min.js exists in the repo.");
+            }
+
+            function openModal() {
+                securityModal.classList.add("open");
+                securityModal.setAttribute("aria-hidden", "false");
+            }
+            function closeModal() {
+                securityModal.classList.remove("open");
+                securityModal.setAttribute("aria-hidden", "true");
+            }
+
+            securityBtn?.addEventListener("click", openModal);
+            securityClose?.addEventListener("click", closeModal);
+
+            securityModal?.addEventListener("click", (e) => {
+                const target = e.target;
+                if (target && target.getAttribute && target.getAttribute("data-close") === "true") closeModal();
+            });
+
+            document.addEventListener("keydown", (e) => {
+                if (e.key === "Escape" && securityModal.classList.contains("open")) closeModal();
+            });
+
+            function fmtBytes(bytes) {
+                const units = ["B", "KB", "MB", "GB"];
+                let b = bytes, i = 0;
+                while (b >= 1024 && i < units.length - 1) { b /= 1024; i++; }
+                return `${b.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+            }
+
+            function fileKey(item) {
+                const f = item.file ?? item;
+                return `${f.name}__${f.size}__${f.lastModified}`;
+            }
+
+            function sanitizeSheetName(name) {
+                return name.replace(/[\[\]\*\?\/\\:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 31);
+            }
+
+            function uniqueSheetName(wb, desired) {
+                let name = sanitizeSheetName(desired) || "Sheet";
+                const existing = new Set(wb.SheetNames);
+                if (!existing.has(name)) return name;
+
+                for (let i = 1; i < 999; i++) {
+                    const suffix = ` (${i})`;
+                    const base = name.slice(0, 31 - suffix.length);
+                    const candidate = base + suffix;
+                    if (!existing.has(candidate)) return candidate;
+                }
+                return ("Sheet " + Math.random().toString(16).slice(2, 6)).slice(0, 31);
+            }
+
+            function cloneWorksheet(ws) {
+                const out = {};
+                for (const k of Object.keys(ws)) {
+                    const v = ws[k];
+                    if (v && typeof v === "object") {
+                        out[k] = Array.isArray(v)
+                            ? v.map(x => (x && typeof x === "object" ? { ...x } : x))
+                            : { ...v };
+                    } else out[k] = v;
+                }
+                return out;
+            }
+
+            function setOverallProgress(done, total) {
+                const pct = total ? Math.round((done / total) * 100) : 0;
+                overallFill.style.width = pct + "%";
+                overallMeta.textContent = `${done} / ${total} sheets`;
+            }
+
+            function setFileProgress(fileName, done, total) {
+                const pct = total ? Math.round((done / total) * 100) : 0;
+                fileFill.style.width = pct + "%";
+                fileMeta.textContent = fileName ? `${fileName} · ${done} / ${total}` : "–";
+            }
+
+            function renderFileList() {
+                fileListEl.innerHTML = "";
+
+                if (selectedFiles.length === 0) {
+                    const li = document.createElement("li");
+                    li.className = "fileitem";
+                    li.innerHTML = `
+            <div class="left">
+                <div class="handle">⋮⋮</div>
+                <div class="filemeta">
+                <div class="filename">No files added yet</div>
+                <div class="filesub"></div>
+                </div>
+            </div>`;
+                    fileListEl.appendChild(li);
+                    return;
+                }
+
+                selectedFiles.forEach((item, idx) => {
+                    const f = item.file;
+
+                    const li = document.createElement("li");
+                    li.className = "fileitem";
+                    li.draggable = true;
+                    li.dataset.index = String(idx);
+
+                    // Escape quotes so we can safely put label into value=""
+                    const safeValue = (item.label || "").replace(/"/g, "&quot;");
+
+                    li.innerHTML = `
+            <div class="left">
+                <div class="handle" title="Drag to reorder">⋮⋮</div>
+                <div class="filemeta">
+                <div class="filename" title="${f.name}">${f.name}</div>
+                <div class="filesub">${fmtBytes(f.size)} · modified ${new Date(f.lastModified).toLocaleString()}</div>
+
+                <input
+                    class="filelabel"
+                    type="text"
+                    value="${safeValue}"
+                    placeholder="Tab title / sheet prefix (e.g. Customer A)"
+                    data-label="${idx}"
+                />
+                </div>
+            </div>
+            <div>
+                <button class="btn small danger" type="button" data-remove="${idx}">Remove</button>
+            </div>
+            `;
+
+                    li.addEventListener("dragstart", (e) => {
+                        dragFromIndex = idx;
+                        li.classList.add("dragging");
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", String(idx));
+                    });
+
+                    li.addEventListener("dragend", () => {
+                        li.classList.remove("dragging");
+                        dragFromIndex = null;
+                    });
+
+                    li.addEventListener("dragover", (e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                    });
+
+                    li.addEventListener("drop", (e) => {
+                        e.preventDefault();
+                        const from = dragFromIndex ?? Number(e.dataTransfer.getData("text/plain"));
+                        const to = idx;
+                        if (Number.isNaN(from) || from === to) return;
+
+                        const moved = selectedFiles.splice(from, 1)[0];
+                        selectedFiles.splice(to, 0, moved);
+                        updateUI();
+                    });
+
+                    fileListEl.appendChild(li);
+                });
+
+                // Remove buttons
+                fileListEl.querySelectorAll("[data-remove]").forEach(btn => {
+                    btn.addEventListener("click", () => {
+                        const idx = Number(btn.getAttribute("data-remove"));
+                        selectedFiles.splice(idx, 1);
+                        updateUI();
+                    });
+                });
+
+                // Label inputs
+                fileListEl.querySelectorAll("[data-label]").forEach(inp => {
+                    inp.addEventListener("input", () => {
+                        const idx = Number(inp.getAttribute("data-label"));
+                        if (Number.isNaN(idx) || !selectedFiles[idx]) return;
+                        selectedFiles[idx].label = inp.value;
+                    });
+                });
+            }
+
+            function updateUI() {
+                renderFileList();
+                mergeBtn.disabled = selectedFiles.length === 0 || (typeof XLSX === "undefined");
+                setOverallProgress(0, 0);
+                setFileProgress("", 0, 0);
+            }
+
+            function addFiles(files) {
+                const incoming = Array.from(files || []);
+                if (!incoming.length) return;
+
+                const existingKeys = new Set(selectedFiles.map(fileKey));
+                let added = 0, skipped = 0;
+
+                for (const f of incoming) {
+                    const isExcel = /\.(xlsx|xlsm)$/i.test(f.name);
+                    if (!isExcel) { skipped++; continue; }
+
+                    const key = fileKey(f);
+                    if (existingKeys.has(key)) { skipped++; continue; }
+
+                    const fileStem = f.name.replace(/\.[^.]+$/, "");
+                    selectedFiles.push({ file: f, label: fileStem }); // default label
+                    existingKeys.add(key);
+                    added++;
+                }
+
+                addLog(`✅ Added: ${added} file(s)`);
+                if (skipped) addLog(`ℹ️ Skipped: ${skipped} (duplicates or not Excel)`);
+                updateUI();
+            }
+
+            // ✅ Only prevent the browser from opening files when dragging actual files.
+            // ✅ Do NOT block internal drag/reorder of list items.
+            function isFileDrag(e) {
+                const dt = e.dataTransfer;
+                if (!dt) return false;
+                // types can be DOMStringList or array-ish
+                const types = Array.from(dt.types || []);
+                return types.includes("Files");
+            }
+
+            const preventFileDrop = (e) => {
+                if (!isFileDrag(e)) return;     // <-- key line
+                e.preventDefault();
+                e.stopPropagation();
+            };
+
+            // Prevent the browser from navigating/opening dropped files
+            ["dragover", "drop"].forEach(evt => {
+                window.addEventListener(evt, preventFileDrop, { capture: true, passive: false });
+            });
+
+
+            ["dragenter", "dragover"].forEach(evt => {
+                dropzone.addEventListener(evt, () => dropzone.classList.add("dragover"), { passive: true });
+            });
+            ["dragleave", "drop"].forEach(evt => {
+                dropzone.addEventListener(evt, () => dropzone.classList.remove("dragover"), { passive: true });
+            });
+
+            dropzone.addEventListener("drop", (e) => {
+                const dt = e.dataTransfer;
+                addLog("📥 Drop detected (zone)");
+                if (!dt) return;
+                addFiles(dt.files);
+            }, { passive: false });
+
+            window.addEventListener("drop", (e) => {
+                const dt = e.dataTransfer;
+                addLog("📥 Drop detected (window)");
+                if (!dt) return;
+                addFiles(dt.files);
+            }, { capture: true, passive: false });
+
+            filePicker.addEventListener("change", () => {
+                addLog("📂 Picker change detected");
+                addFiles(filePicker.files);
+                filePicker.value = "";
+            });
+
+            async function buildCache(items) {
+                const cache = [];
+                let totalSheets = 0;
+
+                for (const item of items) {
+                    const f = item.file;
+                    addLog(`📦 Loading: ${f.name}`);
+                    const buf = await f.arrayBuffer();
+                    const wb = XLSX.read(buf, {
+                        type: "array",
+                        cellFormula: keepFormulasEl.checked,
+                        cellNF: true,
+                        cellText: false
+                    });
+                    totalSheets += wb.SheetNames.length;
+                    cache.push({ item, wb });
+                }
+                return { cache, totalSheets };
+            }
+
+            async function mergeExcels(items) {
+                if (typeof XLSX === "undefined") {
+                    addLog("❌ Cannot merge: XLSX library not available (missing vendor file).");
+                    return;
+                }
+
+                mergeBtn.disabled = true;
+                resetBtn.disabled = true;
+                filePicker.disabled = true;
+                if (outputNameEl) outputNameEl.disabled = true;
+
+                try {
+                    addLog("\n▶ Starting merge…");
+                    const { cache, totalSheets } = await buildCache(items);
+
+                    setOverallProgress(0, totalSheets);
+                    let doneSheets = 0;
+
+                    const outWb = XLSX.utils.book_new();
+
+                    for (const entry of cache) {
+                        const item = entry.item;
+                        const f = item.file;
+                        const wb = entry.wb;
+
+                        const fileStem = f.name.replace(/\.[^.]+$/, "");
+                        const customLabel = (item.label || "").trim();
+                        const basePrefix = customLabel || fileStem;
+                        const prefix = prefixNamesEl.checked ? basePrefix : "";
+
+                        setFileProgress(f.name, 0, wb.SheetNames.length);
+                        addLog(`\n📄 Merging: ${f.name}`);
+
+                        let fileDone = 0;
+                        for (const sheetName of wb.SheetNames) {
+                            const ws = wb.Sheets[sheetName];
+
+                            const desired = prefix ? `${prefix} - ${sheetName}` : sheetName;
+                            const finalName = uniqueSheetName(outWb, desired);
+
+                            XLSX.utils.book_append_sheet(outWb, cloneWorksheet(ws), finalName);
+
+                            fileDone++; doneSheets++;
+                            setFileProgress(f.name, fileDone, wb.SheetNames.length);
+                            setOverallProgress(doneSheets, totalSheets);
+
+                            await new Promise(r => requestAnimationFrame(r));
+                        }
+                    }
+
+                    addLog("\n📦 Building output…");
+                    const outArray = XLSX.write(outWb, { bookType: "xlsx", type: "array" });
+                    const blob = new Blob([outArray], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+
+                    const rawName = (outputNameEl?.value || "").trim();
+                    const safeName = rawName
+                        .replace(/[<>:"/\\|?*\x00-\x1F]/g, " ")
+                        .replace(/\s+/g, " ")
+                        .trim();
+
+                    const fallbackName = `Merged_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                    const finalName = safeName
+                        ? (safeName.toLowerCase().endsWith(".xlsx") ? safeName : `${safeName}.xlsx`)
+                        : fallbackName;
+
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = finalName;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+
+                    addLog(`\n🎉 Done! Download started: ${finalName}`);
+                } catch (e) {
+                    addLog(`\n❌ Error: ${e?.message || e}`);
+                } finally {
+                    resetBtn.disabled = false;
+                    filePicker.disabled = false;
+                    if (outputNameEl) outputNameEl.disabled = false;
+                    mergeBtn.disabled = selectedFiles.length === 0 || (typeof XLSX === "undefined");
+                }
+            }
+
+            mergeBtn.addEventListener("click", async () => {
+                if (!selectedFiles.length) return;
+                await mergeExcels(selectedFiles);
+            });
+
+            resetBtn.addEventListener("click", () => {
+                selectedFiles = [];
+                updateUI();
+                setLog("App loaded ✅");
+                if (outputNameEl) outputNameEl.value = "";
+            });
+
+            updateUI();
+        });
+    </script>
+
+</body>
+
+</html>
