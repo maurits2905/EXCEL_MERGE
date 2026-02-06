@@ -6,14 +6,6 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Excel Merger – Tabs from multiple files</title>
 
-    <!--
-    SECURITY / PRIVACY NOTES
-    - Files are processed locally in the browser (no upload endpoints).
-    - CSP below blocks outbound network connections from this page.
-    - XLSX library is loaded locally from /vendor (no CDN).
-  -->
-
-    <!-- Strong CSP (blocks outbound connections). Inline CSS/JS is allowed for simplicity. -->
     <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
     base-uri 'none';
@@ -30,7 +22,6 @@
     upgrade-insecure-requests;
   ">
 
-    <!-- Local SheetJS (you must commit this file to /vendor/xlsx.full.min.js) -->
     <script src="./vendor/xlsx.full.min.js"></script>
 
     <style>
@@ -66,7 +57,7 @@
         }
 
         body {
-            min-height: 100vh;   /* allow page to grow */
+            min-height: 100vh;
             margin: 0;
             color: var(--text);
             font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
@@ -75,15 +66,18 @@
                 radial-gradient(900px 600px at 85% 20%, rgba(59, 130, 246, .16), transparent 55%),
                 linear-gradient(180deg, var(--bg1), var(--bg2));
             background-attachment: fixed;
+
             display: flex;
-            align-items: flex-start;
-            justify-content: center;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
             padding: 32px 16px;
         }
 
         .wrap {
             width: min(980px, 100%);
             display: grid;
+            margin-inline: auto;
             grid-template-columns: 1.25fr .75fr;
             gap: 16px;
         }
@@ -346,20 +340,20 @@
             width: min(520px, 100%);
             padding: 8px 10px;
             border-radius: 10px;
-            border: 1px solid rgba(255,255,255,.14);
-            background: rgba(0,0,0,.18);
-            color: rgba(255,255,255,.92);
+            border: 1px solid rgba(255, 255, 255, .14);
+            background: rgba(0, 0, 0, .18);
+            color: rgba(255, 255, 255, .92);
             outline: none;
             font-size: 12px;
         }
 
-        .filelabel::placeholder{
-            color: rgba(255,255,255,.55);
+        .filelabel::placeholder {
+            color: rgba(255, 255, 255, .55);
         }
 
-        .filelabel:focus{
-            border-color: rgba(219,234,254,.45);
-            box-shadow: 0 0 0 3px rgba(219,234,254,.10);
+        .filelabel:focus {
+            border-color: rgba(219, 234, 254, .45);
+            box-shadow: 0 0 0 3px rgba(219, 234, 254, .10);
         }
 
         .opt {
@@ -472,115 +466,97 @@
             color: var(--bad);
         }
 
-        .modal{
+        .modal {
             position: fixed;
             inset: 0;
             display: none;
             z-index: 9999;
         }
 
-        .modal.open{
-         display: block;
+        .modal.open {
+            display: block;
         }
 
-        .modal-backdrop{
+        .modal-backdrop {
             position: absolute;
             inset: 0;
-           background: rgba(0,0,0,.55);
+            background: rgba(18, 14, 6, .62);
             backdrop-filter: blur(4px);
         }
 
-        .modal-panel{
+        .modal-panel {
             position: relative;
             width: min(780px, calc(100% - 28px));
             margin: 60px auto;
             border-radius: 16px;
-            border: 1px solid rgba(255,255,255,.14);
-            background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
-            box-shadow: 0 18px 45px rgba(0,0,0,.40);
+            border: 1px solid rgba(255, 209, 102, .22);
+            background: linear-gradient(180deg, rgba(255, 209, 102, .10), rgba(255, 255, 255, .06));
+            box-shadow: 0 18px 45px rgba(0, 0, 0, .40);
             overflow: hidden;
         }
 
-        .modal-header{
+        .modal-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
             padding: 14px 14px 10px 14px;
-            border-bottom: 1px solid rgba(255,255,255,.12);
+            border-bottom: 1px solid rgba(255, 255, 255, .12);
         }
 
-        .modal-kicker{
+        .modal-kicker {
             font-size: 12px;
-            color: rgba(255,255,255,.65);
+            color: rgba(255, 209, 102, .85);
             margin-bottom: 2px;
         }
 
-        .modal-title{
+        .modal-title {
             margin: 0;
             font-size: 16px;
-            color: rgba(255,255,255,.92);
+            color: rgba(255, 255, 255, .92);
         }
 
-        .modal-body{
+        .modal-body {
             padding: 14px;
-            color: rgba(255,255,255,.90);
+            color: rgba(255, 255, 255, .90);
             font-size: 13px;
             line-height: 1.55;
         }
 
-        .modal-body h4{
+        .modal-body h4 {
             margin: 10px 0 6px;
             font-size: 13px;
-            color: rgba(255,255,255,.88);
+            color: rgba(255, 255, 255, .88);
         }
 
-        .modal-body ul{
+        .modal-body ul {
             margin: 0 0 10px;
             padding-left: 18px;
-            color: rgba(255,255,255,.75);
+            color: rgba(255, 255, 255, .75);
         }
 
-        .modal-note{
+        .modal-note {
             margin-top: 10px;
             padding: 10px 12px;
             border-radius: 12px;
-            border: 1px solid rgba(255,255,255,.12);
-            background: rgba(0,0,0,.18);
-            color: rgba(255,255,255,.80);
+            border: 1px solid rgba(255, 209, 102, .18);
+            background: rgba(255, 209, 102, .08);
+            color: rgba(255, 255, 255, .80);
         }
 
-        /* Yellow accent for Security info button */
-        #securityBtn{
-            background: rgba(255, 209, 102, .16);        /* warn yellow */
+        #securityBtn {
+            background: rgba(255, 209, 102, .16);
             border: 1px solid rgba(255, 209, 102, .32);
             color: rgba(255, 255, 255, .92);
         }
 
-        /* Yellow-tinted modal backdrop (subtle) */
-            .modal-backdrop{
-            background: rgba(18, 14, 6, .62);
-        }
-
-        /* Yellow-tinted modal panel */
-        .modal-panel{
-            border: 1px solid rgba(255, 209, 102, .22);
-            background: linear-gradient(
-                180deg,
-                rgba(255, 209, 102, .10),
-                rgba(255, 255, 255, .06)
-        );
-        }
-
-        /* Optional: make the little kicker label slightly yellow too */
-            .modal-kicker{
-            color: rgba(255, 209, 102, .85);
-        }
-
-        /* Optional: highlight the summary box */
-            .modal-note{
-            border: 1px solid rgba(255, 209, 102, .18);
-            background: rgba(255, 209, 102, .08);
+        .footer {
+            width: min(980px, 100%);
+            margin-top: 24px;
+            padding: 12px 16px 20px;
+            text-align: center;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.45);
         }
 
 
@@ -598,10 +574,9 @@
                         <p class="sub">Merge multiple Excel files into a single workbook.</p>
                     </div>
                 </div>
-            
+
                 <button id="securityBtn" class="btn secondary small" type="button">Security info</button>
             </div>
-
 
             <div class="controls">
                 <input id="filePicker" class="visually-hidden" type="file" accept=".xlsx,.xlsm" multiple />
@@ -610,16 +585,12 @@
                     <div class="dz-top">
                         <div>
                             <div class="dz-title">Drop Excel files here</div>
-                            <div class="dz-sub">or click “Add files”. Drag files in the list to set the merge order.</div>
+                            <div class="dz-sub">or click “Add files”. Drag files in the list to set the merge order.
+                            </div>
                         </div>
                         <label for="filePicker" class="btn secondary small" role="button" tabindex="0">Add files</label>
                     </div>
                     <ul id="fileList" class="filelist"></ul>
-                </div>
-
-                <div class="opt">
-                    <input id="prefixNames" type="checkbox" checked />
-                    <label for="prefixNames">Prefix sheet names with file name (recommended)</label>
                 </div>
 
                 <div class="opt">
@@ -667,11 +638,14 @@
         </aside>
     </div>
 
-    <!-- Security modal -->
+    <footer class="footer">
+        Built by 2BM A/S for internal use in collaboration with Copenhagen Airport A/S.
+    </footer>
+
     <div id="securityModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true"
         aria-labelledby="securityTitle">
         <div class="modal-backdrop" data-close="true"></div>
-    
+
         <div class="modal-panel" role="document">
             <div class="modal-header">
                 <div>
@@ -680,7 +654,7 @@
                 </div>
                 <button id="securityClose" class="btn secondary small" type="button" aria-label="Close">Close</button>
             </div>
-    
+
             <div class="modal-body">
                 <h4>How your files are handled</h4>
                 <ul>
@@ -689,13 +663,14 @@
                     <li>The site has <b>no backend, database, or analytics</b>.</li>
                     <li>Outbound network connections from this page are <b>blocked by policy</b>.</li>
                 </ul>
-    
+
                 <h4>Residual risks (normal for any browser tool)</h4>
                 <ul>
                     <li>Browser extensions or endpoint security software may inspect file activity.</li>
-                    <li>If the merged Excel file contains external links/queries, Excel may prompt you when opening it.</li>
+                    <li>If the merged Excel file contains external links/queries, Excel may prompt you when opening it.
+                    </li>
                 </ul>
-    
+
                 <h4>Use this tool securely</h4>
                 <ul>
                     <li>Use a <b>company-managed device</b>.</li>
@@ -703,10 +678,10 @@
                     <li>Use the <b>official site URL</b> only.</li>
                     <li>Follow company guidance if Excel warns about external content.</li>
                 </ul>
-    
+
                 <div class="modal-note">
-                    Summary: When used on a company-managed device and network/VPN, this tool is safe for confidential Excel
-                    files.
+                    Summary: When used on a company-managed device and network/VPN, this tool is safe for confidential
+                    Excel files.
                 </div>
             </div>
         </div>
@@ -721,7 +696,6 @@
             const fileListEl = $("fileList");
             const mergeBtn = $("mergeBtn");
             const resetBtn = $("resetBtn");
-            const prefixNamesEl = $("prefixNames");
             const keepFormulasEl = $("keepFormulas");
             const outputNameEl = $("outputName");
             const logEl = $("log");
@@ -731,12 +705,10 @@
             const fileFill = $("fileFill");
             const fileMeta = $("fileMeta");
 
-            // Security modal wiring
             const securityBtn = $("securityBtn");
             const securityModal = $("securityModal");
             const securityClose = $("securityClose");
 
-            // IMPORTANT: now stores objects with label per file
             let selectedFiles = []; // [{ file: File, label: string }]
             let dragFromIndex = null;
 
@@ -745,7 +717,6 @@
 
             setLog("App loaded ✅");
 
-            // If the local vendor file is missing, merging can't work.
             if (typeof XLSX === "undefined") {
                 addLog("❌ XLSX library not found. Make sure /vendor/xlsx.full.min.js exists in the repo.");
             }
@@ -833,13 +804,13 @@
                     const li = document.createElement("li");
                     li.className = "fileitem";
                     li.innerHTML = `
-            <div class="left">
-                <div class="handle">⋮⋮</div>
-                <div class="filemeta">
-                <div class="filename">No files added yet</div>
-                <div class="filesub"></div>
-                </div>
-            </div>`;
+                        <div class="left">
+                            <div class="handle">⋮⋮</div>
+                            <div class="filemeta">
+                                <div class="filename">No files added yet</div>
+                                <div class="filesub"></div>
+                            </div>
+                        </div>`;
                     fileListEl.appendChild(li);
                     return;
                 }
@@ -852,29 +823,28 @@
                     li.draggable = true;
                     li.dataset.index = String(idx);
 
-                    // Escape quotes so we can safely put label into value=""
                     const safeValue = (item.label || "").replace(/"/g, "&quot;");
 
                     li.innerHTML = `
-            <div class="left">
-                <div class="handle" title="Drag to reorder">⋮⋮</div>
-                <div class="filemeta">
-                <div class="filename" title="${f.name}">${f.name}</div>
-                <div class="filesub">${fmtBytes(f.size)} · modified ${new Date(f.lastModified).toLocaleString()}</div>
+                        <div class="left">
+                            <div class="handle" title="Drag to reorder">⋮⋮</div>
+                            <div class="filemeta">
+                                <div class="filename" title="${f.name}">${f.name}</div>
+                                <div class="filesub">${fmtBytes(f.size)} · modified ${new Date(f.lastModified).toLocaleString()}</div>
 
-                <input
-                    class="filelabel"
-                    type="text"
-                    value="${safeValue}"
-                    placeholder="Tab title / sheet prefix (e.g. Customer A)"
-                    data-label="${idx}"
-                />
-                </div>
-            </div>
-            <div>
-                <button class="btn small danger" type="button" data-remove="${idx}">Remove</button>
-            </div>
-            `;
+                                <input
+                                    class="filelabel"
+                                    type="text"
+                                    value="${safeValue}"
+                                    placeholder="Tab title (e.g. Customer A)"
+                                    data-label="${idx}"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <button class="btn small danger" type="button" data-remove="${idx}">Remove</button>
+                        </div>
+                    `;
 
                     li.addEventListener("dragstart", (e) => {
                         dragFromIndex = idx;
@@ -907,7 +877,6 @@
                     fileListEl.appendChild(li);
                 });
 
-                // Remove buttons
                 fileListEl.querySelectorAll("[data-remove]").forEach(btn => {
                     btn.addEventListener("click", () => {
                         const idx = Number(btn.getAttribute("data-remove"));
@@ -916,7 +885,6 @@
                     });
                 });
 
-                // Label inputs
                 fileListEl.querySelectorAll("[data-label]").forEach(inp => {
                     inp.addEventListener("input", () => {
                         const idx = Number(inp.getAttribute("data-label"));
@@ -948,7 +916,7 @@
                     if (existingKeys.has(key)) { skipped++; continue; }
 
                     const fileStem = f.name.replace(/\.[^.]+$/, "");
-                    selectedFiles.push({ file: f, label: fileStem }); // default label
+                    selectedFiles.push({ file: f, label: fileStem });
                     existingKeys.add(key);
                     added++;
                 }
@@ -958,27 +926,24 @@
                 updateUI();
             }
 
-            // ✅ Only prevent the browser from opening files when dragging actual files.
-            // ✅ Do NOT block internal drag/reorder of list items.
+            // Only prevent browser opening files when dragging actual files.
+            // Do NOT block internal drag/reorder of list items.
             function isFileDrag(e) {
                 const dt = e.dataTransfer;
                 if (!dt) return false;
-                // types can be DOMStringList or array-ish
                 const types = Array.from(dt.types || []);
                 return types.includes("Files");
             }
 
             const preventFileDrop = (e) => {
-                if (!isFileDrag(e)) return;     // <-- key line
+                if (!isFileDrag(e)) return;
                 e.preventDefault();
                 e.stopPropagation();
             };
 
-            // Prevent the browser from navigating/opening dropped files
             ["dragover", "drop"].forEach(evt => {
                 window.addEventListener(evt, preventFileDrop, { capture: true, passive: false });
             });
-
 
             ["dragenter", "dragover"].forEach(evt => {
                 dropzone.addEventListener(evt, () => dropzone.classList.add("dragover"), { passive: true });
@@ -1054,17 +1019,20 @@
 
                         const fileStem = f.name.replace(/\.[^.]+$/, "");
                         const customLabel = (item.label || "").trim();
-                        const basePrefix = customLabel || fileStem;
-                        const prefix = prefixNamesEl.checked ? basePrefix : "";
+                        const baseName = customLabel || fileStem;
 
                         setFileProgress(f.name, 0, wb.SheetNames.length);
                         addLog(`\n📄 Merging: ${f.name}`);
 
                         let fileDone = 0;
-                        for (const sheetName of wb.SheetNames) {
+                        const multi = wb.SheetNames.length > 1;
+
+                        for (let i = 0; i < wb.SheetNames.length; i++) {
+                            const sheetName = wb.SheetNames[i];
                             const ws = wb.Sheets[sheetName];
 
-                            const desired = prefix || sheetName;
+                            // Always use your label/filename. If the file has multiple sheets, number them.
+                            const desired = multi ? `${baseName} (${i + 1})` : baseName;
                             const finalName = uniqueSheetName(outWb, desired);
 
                             XLSX.utils.book_append_sheet(outWb, cloneWorksheet(ws), finalName);
@@ -1129,5 +1097,4 @@
     </script>
 
 </body>
-
 </html>
