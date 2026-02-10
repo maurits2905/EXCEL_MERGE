@@ -579,13 +579,13 @@
             </div>
 
             <div class="controls">
-                <input id="filePicker" class="visually-hidden" type="file" accept=".xlsx,.xlsm" multiple />
+                <input id="filePicker" class="visually-hidden" type="file" accept=".xlsx,.xlsm,.xls" multiple />
 
                 <div id="dropzone" class="dropzone">
                     <div class="dz-top">
                         <div>
-                            <div class="dz-title">Drop Excel files here</div>
-                            <div class="dz-sub">or click “Add files”. Drag files in the list to set the merge order.
+                            <div class="dz-title">Select or drag Excel files here(.xlsx, .xls)</div>
+                            <div class="dz-sub">Drag files in the list to set the merge order.
                             </div>
                         </div>
                         <label for="filePicker" class="btn secondary small" role="button" tabindex="0">Add files</label>
@@ -909,7 +909,7 @@
                 let added = 0, skipped = 0;
 
                 for (const f of incoming) {
-                    const isExcel = /\.(xlsx|xlsm)$/i.test(f.name);
+                    const isExcel = /\.(xlsx|xlsm|xls)$/i.test(f.name);
                     if (!isExcel) { skipped++; continue; }
 
                     const key = fileKey(f);
@@ -1097,4 +1097,5 @@
     </script>
 
 </body>
+
 </html>
