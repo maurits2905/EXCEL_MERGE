@@ -608,7 +608,7 @@
             id="filePicker"
             class="visually-hidden"
             type="file"
-            accept=".xlsx,.xlsm,.xls"
+            accept=".xlsx,.xlsm,.xls,.txt"
             multiple
           />
 
@@ -1033,7 +1033,7 @@
             skipped = 0;
 
           for (const f of incoming) {
-            const isExcel = /\.(xlsx|xlsm|xls)$/i.test(f.name);
+            const isExcel = /\.(xlsx|xlsm|xls|txt)$/i.test(f.name);
             if (!isExcel) {
               skipped++;
               continue;
@@ -1129,17 +1129,40 @@
           for (const item of items) {
             const f = item.file;
             addLog(`📦 Loading: ${f.name}`);
-            const buf = await f.arrayBuffer();
-            const wb = XLSX.read(buf, {
-              type: "array",
-              cellFormula: keepFormulasEl.checked,
-              cellNF: true,
-              cellText: false,
-              cellStyles: true, // (bevarer formater/styling, inkl. number formats)
-            });
+
+            let wb;
+
+            if (/\.txt$/i.test(f.name)) {
+              let text = await f.text();
+
+              // Normalize newlines
+              text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+              const rows = text
+                .split("\n")
+                .map((r) => r.trim())
+                .filter((r) => r.length > 0)
+                .map((r) => r.split(";").map((c) => c.trim()));
+
+              const ws = XLSX.utils.aoa_to_sheet(rows);
+
+              wb = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+            } else {
+              const buf = await f.arrayBuffer();
+              wb = XLSX.read(buf, {
+                type: "array",
+                cellFormula: keepFormulasEl.checked,
+                cellNF: true,
+                cellText: false,
+                cellStyles: true,
+                raw: true,
+              });
+            }
             totalSheets += wb.SheetNames.length;
             cache.push({ item, wb });
           }
+
           return { cache, totalSheets };
         }
 
