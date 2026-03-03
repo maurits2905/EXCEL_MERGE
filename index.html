@@ -658,11 +658,12 @@
             formulas)
           </li>
           <li>
-            <span class="ok">✅</span> Merged cells and often column widths
+            <span class="ok">✅</span> Sheet order and names (with automatic
+            de-duplication)
           </li>
           <li>
-            <span class="warn">⚠️</span> Advanced formatting and themes may
-            change
+            <span class="warn">⚠️</span> Formatting may change (number formats,
+            alignment, column widths, themes)
           </li>
           <li>
             <span class="bad">✖</span> PivotTables, charts, images, Power Query,
@@ -695,6 +696,8 @@
     <footer class="footer">
       Built by 2BM A/S for internal use in collaboration with Copenhagen Airport
       A/S.
+      <br />
+      <span id="appVersion"></span>
     </footer>
 
     <div
@@ -773,6 +776,10 @@
 
     <script>
       document.addEventListener("DOMContentLoaded", () => {
+        const APP_VERSION = "1.3";
+        document.getElementById("appVersion").textContent =
+          `Version ${APP_VERSION}`;
+
         const $ = (id) => document.getElementById(id);
 
         const dropzone = $("dropzone");
@@ -1183,7 +1190,7 @@
 
                 XLSX.utils.book_append_sheet(
                   outWb,
-                  cloneWorksheet(ws),
+                  ws, // brug original worksheet
                   finalName,
                 );
 
@@ -1200,7 +1207,7 @@
             const outArray = XLSX.write(outWb, {
               bookType: "xlsx",
               type: "array",
-              cellStyles: true, // (skriver formats med ud i filen)
+              // cellStyles: false  // (eller bare fjern linjen)
             });
             const blob = new Blob([outArray], {
               type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
