@@ -800,7 +800,7 @@
 
     <script>
       document.addEventListener("DOMContentLoaded", () => {
-        const APP_VERSION = "1.4";
+        const APP_VERSION = "1.5";
         document.getElementById("appVersion").textContent =
           `Version ${APP_VERSION}`;
 
@@ -1147,6 +1147,46 @@
           filePicker.value = "";
         });
 
+        function swapDotComma(fmt) {
+          // swap '.' and ',' without collisions
+          // '.' -> '\u0000', ',' -> '.', '\u0000' -> ','
+          return fmt
+            .replace(/\./g, "\u0000")
+            .replace(/,/g, ".")
+            .replace(/\u0000/g, ",");
+        }
+
+        function looksLikeEuropeanNumberFormat(z) {
+          // Typical EU pattern has thousands '.' and decimal ','
+          // e.g. "#.##0,0" or "#.##0,00"
+          // Heuristic: there is at least one '.' before a ',' and both exist
+          const dot = z.indexOf(".");
+          const comma = z.indexOf(",");
+          return dot !== -1 && comma !== -1 && dot < comma;
+        }
+
+        function normalizeWorksheetNumberFormats(ws) {
+          for (const addr of Object.keys(ws)) {
+            if (addr[0] === "!") continue; // metadata
+            const cell = ws[addr];
+            if (!cell || typeof cell !== "object") continue;
+
+            if (
+              typeof cell.z === "string" &&
+              looksLikeEuropeanNumberFormat(cell.z)
+            ) {
+              cell.z = swapDotComma(cell.z);
+            }
+          }
+        }
+
+        function normalizeWorkbookNumberFormats(wb) {
+          for (const name of wb.SheetNames) {
+            const ws = wb.Sheets[name];
+            if (ws) normalizeWorksheetNumberFormats(ws);
+          }
+        }
+
         async function buildCache(items) {
           const cache = [];
           let totalSheets = 0;
@@ -1164,10 +1204,14 @@
               text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
               const rows = text
-                .split("\n")
-                .map((r) => r.trim())
-                .filter((r) => r.length > 0)
-                .map((r) => r.split(";").map((c) => c.trim()));
+                .split(/\r?\n/)
+                .filter((r) => r.trim() !== "")
+                .map((r) => {
+                  if (r.includes("\t")) return r.split("\t");
+                  if (r.includes(";")) return r.split(";");
+                  if (r.includes(",")) return r.split(",");
+                  return [r];
+                });
 
               const ws = XLSX.utils.aoa_to_sheet(rows);
 
@@ -1183,6 +1227,9 @@
                 cellStyles: true,
                 raw: true,
               });
+
+              // ✅ fix locale-ish formats like "#.##0,0" -> "#,##0.0"
+              normalizeWorkbookNumberFormats(wb);
             }
             totalSheets += wb.SheetNames.length;
             cache.push({ item, wb });
@@ -1257,6 +1304,7 @@
             const outArray = XLSX.write(outWb, {
               bookType: selectedFormat,
               type: "array",
+              cellStyles: true,
             });
 
             const mimeTypes = {
